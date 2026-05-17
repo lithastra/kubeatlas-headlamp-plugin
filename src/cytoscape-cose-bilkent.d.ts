@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { DependencyGraphPage } from './DependencyGraph';
+// cytoscape-cose-bilkent ships no type declarations of its own; it is
+// a cytoscape layout extension registered via cytoscape.use().
+declare module 'cytoscape-cose-bilkent' {
+  import { Ext } from 'cytoscape';
 
-describe('DependencyGraphPage', () => {
-  it('renders the placeholder message', () => {
-    render(<DependencyGraphPage />);
-    // getByText throws if the node is absent, so this both finds the
-    // element and asserts it rendered.
-    expect(screen.getByText(/dependency graph will render here/i)).toBeTruthy();
-  });
-});
+  const coseBilkent: Ext;
+  export default coseBilkent;
+}
