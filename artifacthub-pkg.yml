@@ -1,0 +1,26 @@
+# Artifact Hub package metadata for the KubeAtlas Headlamp plugin.
+#
+# Placeholder — this is completed and the createdAt / digest / version
+# verified before the plugin is first published to Artifact Hub.
+# See https://artifacthub.io/docs/topics/repositories/headlamp-plugins/
+version: 0.1.0
+name: kubeatlas
+displayName: KubeAtlas Dependency Graph
+createdAt: "2026-05-17T00:00:00Z"
+description: Dependency graph plugin for Headlamp powered by KubeAtlas
+license: Apache-2.0
+homeURL: https://github.com/lithastra/kubeatlas-headlamp-plugin
+links:
+  - name: source
+    url: https://github.com/lithastra/kubeatlas-headlamp-plugin
+  - name: KubeAtlas
+    url: https://github.com/lithastra/kubeatlas
+keywords:
+  - headlamp
+  - headlamp-plugin
+  - kubeatlas
+  - dependency-graph
+annotations:
+  headlamp/plugin/archive-url: ""
+  headlamp/plugin/archive-checksum: ""
+  headlamp/plugin/version-compat: ">=0.x"
