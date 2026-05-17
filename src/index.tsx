@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-import { registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
+import {
+  type DetailsViewSectionProps,
+  registerDetailsViewSection,
+  registerRoute,
+  registerSidebarEntry,
+} from '@kinvolk/headlamp-plugin/lib';
 import { DependencyGraphPage } from './pages/DependencyGraph';
+import { DependenciesSection, isSupportedKind } from './sections/DependenciesSection';
 
-// The plugin contributes a single top-level "Dependency Graph"
-// sidebar entry and the route it points at. This scaffold ships the
-// registration only — the page itself is a placeholder until the
-// cluster view is wired to a KubeAtlas service.
+// The plugin contributes a top-level "Dependency Graph" sidebar entry
+// (the cluster-level view) and its route.
 registerSidebarEntry({
   parent: null,
   name: 'kubeatlas-dependency-graph',
@@ -34,4 +38,21 @@ registerRoute({
   sidebar: 'kubeatlas-dependency-graph',
   name: 'Dependency Graph',
   component: () => <DependencyGraphPage />,
+});
+
+// It also adds a "KubeAtlas Dependencies" section to the details page
+// of every resource kind KubeAtlas graphs, showing that resource's
+// one-hop neighbourhood. Unsupported kinds register nothing, so no
+// empty section is ever shown.
+registerDetailsViewSection(({ resource }: DetailsViewSectionProps) => {
+  if (!resource || !isSupportedKind(resource.kind)) {
+    return null;
+  }
+  return (
+    <DependenciesSection
+      kind={resource.kind}
+      namespace={resource.metadata?.namespace ?? ''}
+      name={resource.metadata?.name ?? ''}
+    />
+  );
 });

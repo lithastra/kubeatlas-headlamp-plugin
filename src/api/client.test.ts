@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { serviceProxyPath } from './client';
+import { resourcePath, serviceProxyPath } from './client';
 
 describe('serviceProxyPath', () => {
   const svc = { namespace: 'kubeatlas', name: 'kubeatlas', port: 8080 };
@@ -36,6 +36,20 @@ describe('serviceProxyPath', () => {
     const odd = { namespace: 'team a', name: 'svc/x', port: 80 };
     expect(serviceProxyPath(odd, 'api/v1/graph')).toBe(
       '/api/v1/namespaces/team%20a/services/svc%2Fx:80/proxy/api/v1/graph'
+    );
+  });
+});
+
+describe('resourcePath', () => {
+  it('builds the resource-detail endpoint path', () => {
+    expect(resourcePath('petclinic', 'Deployment', 'api')).toBe(
+      'api/v1/resources/petclinic/Deployment/api'
+    );
+  });
+
+  it('uses the "_" sentinel for a cluster-scoped resource', () => {
+    expect(resourcePath('', 'Node', 'worker-1')).toBe(
+      'api/v1/resources/_/Node/worker-1'
     );
   });
 });

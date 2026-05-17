@@ -48,3 +48,18 @@ export interface GraphView {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+
+// Edge is one dependency edge between two resources. `from` and `to`
+// are KubeAtlas resource ids of the form "namespace/Kind/name".
+export interface Edge {
+  from: string;
+  to: string;
+  type: string;
+}
+
+// ResourceNeighbors is the one-hop edge set around a single resource:
+// incoming edges point at it, outgoing edges point away from it.
+export interface ResourceNeighbors {
+  incoming: Edge[];
+  outgoing: Edge[];
+}

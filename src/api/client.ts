@@ -15,7 +15,7 @@
  */
 
 import { ApiProxy } from '@kinvolk/headlamp-plugin/lib';
-import { GraphView, KubeAtlasService } from './types';
+import { GraphView, KubeAtlasService, ResourceNeighbors } from './types';
 
 // serviceProxyPath builds the path to a KubeAtlas endpoint through
 // the Kubernetes API server's service proxy
@@ -43,4 +43,32 @@ export function serviceProxyPath(svc: KubeAtlasService, endpoint: string): strin
 export async function fetchClusterGraph(svc: KubeAtlasService): Promise<GraphView> {
   const path = `${serviceProxyPath(svc, 'api/v1/graph')}?level=cluster`;
   return ApiProxy.request(path, { isJSON: true });
+}
+
+// resourcePath builds the KubeAtlas resource-detail endpoint path for
+// one resource. A cluster-scoped resource has no namespace; KubeAtlas
+// expects the "_" sentinel there because an empty path segment is
+// unaddressable.
+export function resourcePath(namespace: string, kind: string, name: string): string {
+  const ns = namespace || '_';
+  return (
+    `api/v1/resources/${encodeURIComponent(ns)}` +
+    `/${encodeURIComponent(kind)}/${encodeURIComponent(name)}`
+  );
+}
+
+// fetchResourceNeighbors retrieves the one-hop incoming and outgoing
+// edges of a single resource from a KubeAtlas Service.
+export async function fetchResourceNeighbors(
+  svc: KubeAtlasService,
+  namespace: string,
+  kind: string,
+  name: string
+): Promise<ResourceNeighbors> {
+  const path = serviceProxyPath(svc, resourcePath(namespace, kind, name));
+  const detail = await ApiProxy.request(path, { isJSON: true });
+  return {
+    incoming: Array.isArray(detail?.incoming) ? detail.incoming : [],
+    outgoing: Array.isArray(detail?.outgoing) ? detail.outgoing : [],
+  };
 }
