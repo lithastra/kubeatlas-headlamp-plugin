@@ -8,7 +8,7 @@
  * canvas already proxies through Headlamp's API server proxy.
  */
 
-import CloseIcon from '@mui/icons-material/Close';
+import { Icon } from '@iconify/react';
 import {
   Alert,
   Box,
@@ -113,7 +113,7 @@ export function DetailDrawer({
             {parsed?.kind ?? 'Selection'}
           </Typography>
           <IconButton size="small" onClick={onClose} aria-label="Close detail">
-            <CloseIcon fontSize="small" />
+            <Icon icon="mdi:close" width={18} height={18} />
           </IconButton>
         </Stack>
         <Typography variant="h5" sx={{ wordBreak: 'break-all', mt: 0.5 }}>
