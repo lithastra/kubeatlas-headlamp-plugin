@@ -45,6 +45,19 @@ export async function fetchClusterGraph(svc: KubeAtlasService): Promise<GraphVie
   return ApiProxy.request(path, { isJSON: true });
 }
 
+// fetchNamespaceGraph retrieves a single namespace's view from a
+// KubeAtlas Service. The same proxy convention as fetchClusterGraph;
+// the level + namespace ride on the path so the Kubernetes service
+// proxy forwards them verbatim.
+export async function fetchNamespaceGraph(
+  svc: KubeAtlasService,
+  namespace: string,
+): Promise<GraphView> {
+  const qs = `level=namespace&namespace=${encodeURIComponent(namespace)}`;
+  const path = `${serviceProxyPath(svc, 'api/v1/graph')}?${qs}`;
+  return ApiProxy.request(path, { isJSON: true });
+}
+
 // resourcePath builds the KubeAtlas resource-detail endpoint path for
 // one resource. A cluster-scoped resource has no namespace; KubeAtlas
 // expects the "_" sentinel there because an empty path segment is

@@ -1,21 +1,10 @@
 /*
  * Copyright 2026 The KubeAtlas Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { useTheme } from '@mui/material/styles';
-import type { Core } from 'cytoscape';
+import type { Core, EventObject } from 'cytoscape';
 import { useEffect, useRef } from 'react';
 import { GraphView } from '../api/types';
 import {
@@ -27,31 +16,48 @@ import { paletteForScheme } from '../lib/themePalettes';
 
 export interface GraphCanvasProps {
   graph: GraphView;
+  // onSelect fires with a node id when the operator taps a node, or
+  // null when the canvas background is tapped (clear-selection
+  // gesture). The parent owns the detail drawer that surfaces the
+  // node's incoming/outgoing edges.
+  onSelect?: (nodeId: string | null) => void;
+  // reachable, when non-null, holds the set of node ids that stay
+  // bright in blast-radius mode; every other node + edge picks up
+  // the `dimmed` data flag and fades to ~20% via the cartography
+  // node[?dimmed] / edge[?dimmed] rules. null clears the dim pass.
+  reachable?: ReadonlySet<string> | null;
 }
 
 // GraphCanvas renders a KubeAtlas aggregated view with the same
-// cartography stylesheet the standalone web UI uses: six node-family
-// shapes (rectangle / round-rectangle / hexagon / octagon / cut-
-// rectangle), edge encoding by weight + dash + colour + arrow (the
-// 4-channel scheme from the design's edge inventory), and a
-// runtime-switchable palette that follows Headlamp's MUI mode.
-//
-// Lifecycle is direct: create on mount, update on view change via
-// cy.json, applyAtlasPalette on theme toggle (preserves selection),
-// destroy on unmount.
-export function GraphCanvas({ graph }: GraphCanvasProps) {
+// cartography stylesheet the standalone web UI uses. Lifecycle is
+// direct: create on mount, update on view change via cy.json,
+// applyAtlasPalette on theme toggle (preserves selection), destroy
+// on unmount.
+export function GraphCanvas({ graph, onSelect, reachable }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
+  // Keep the latest onSelect in a ref so the cytoscape tap handlers
+  // (registered once at mount) always see the current callback
+  // without rebinding the whole canvas.
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const theme = useTheme();
   const palette = paletteForScheme(theme.palette.mode === 'dark' ? 'dark' : 'light');
 
-  // Effect 1: create / update the cytoscape instance from `graph`.
+  // Effect 1: create / update the cytoscape instance.
   useEffect(() => {
     if (!containerRef.current) return;
     if (cyRef.current) {
       updateCytoscape(cyRef.current, graph);
     } else {
-      cyRef.current = createCytoscape(containerRef.current, graph, palette);
+      const cy = createCytoscape(containerRef.current, graph, palette);
+      cyRef.current = cy;
+      cy.on('tap', 'node', (ev: EventObject) => {
+        onSelectRef.current?.(String(ev.target.id()));
+      });
+      cy.on('tap', (ev: EventObject) => {
+        if (ev.target === cy) onSelectRef.current?.(null);
+      });
     }
     // palette is intentionally NOT a dep — palette changes flow
     // through effect 2 (live restyle) without rerunning create /
@@ -59,15 +65,39 @@ export function GraphCanvas({ graph }: GraphCanvasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
 
-  // Effect 2: live palette swap on theme change — preserves
-  // selection and layout.
+  // Effect 2: live palette swap on theme change.
   useEffect(() => {
     if (cyRef.current) {
       applyAtlasPalette(cyRef.current, palette);
     }
   }, [palette]);
 
-  // Effect 3: destroy on unmount.
+  // Effect 3: project the blast-radius reachable set onto the canvas
+  // as a `dimmed` data flag. null reachable wipes every flag so the
+  // canvas snaps back to normal.
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    cy.batch(() => {
+      if (!reachable) {
+        cy.nodes().removeData('dimmed');
+        cy.edges().removeData('dimmed');
+        return;
+      }
+      cy.nodes().forEach(n => {
+        if (reachable.has(String(n.id()))) n.removeData('dimmed');
+        else n.data('dimmed', true);
+      });
+      cy.edges().forEach(e => {
+        const inSet =
+          reachable.has(String(e.source().id())) && reachable.has(String(e.target().id()));
+        if (inSet) e.removeData('dimmed');
+        else e.data('dimmed', true);
+      });
+    });
+  }, [reachable, graph]);
+
+  // Effect 4: destroy on unmount.
   useEffect(() => {
     return () => {
       cyRef.current?.destroy();
