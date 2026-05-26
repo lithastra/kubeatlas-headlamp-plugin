@@ -14,74 +14,76 @@
  * limitations under the License.
  */
 
-import cytoscape from 'cytoscape';
-import coseBilkent from 'cytoscape-cose-bilkent';
+import { useTheme } from '@mui/material/styles';
+import type { Core } from 'cytoscape';
 import { useEffect, useRef } from 'react';
 import { GraphView } from '../api/types';
-
-// Register the cose-bilkent force-directed layout once, at module
-// load — cytoscape.use is idempotent for repeat calls.
-cytoscape.use(coseBilkent);
+import {
+  applyAtlasPalette,
+  createCytoscape,
+  updateCytoscape,
+} from '../lib/cytoscape';
+import { paletteForScheme } from '../lib/themePalettes';
 
 export interface GraphCanvasProps {
   graph: GraphView;
 }
 
-// GraphCanvas renders a KubeAtlas aggregated view with cytoscape.
-// It is the plugin's own component — it shares the rendering idea
-// with the KubeAtlas web UI but none of its code.
+// GraphCanvas renders a KubeAtlas aggregated view with the same
+// cartography stylesheet the standalone web UI uses: six node-family
+// shapes (rectangle / round-rectangle / hexagon / octagon / cut-
+// rectangle), edge encoding by weight + dash + colour + arrow (the
+// 4-channel scheme from the design's edge inventory), and a
+// runtime-switchable palette that follows Headlamp's MUI mode.
+//
+// Lifecycle is direct: create on mount, update on view change via
+// cy.json, applyAtlasPalette on theme toggle (preserves selection),
+// destroy on unmount.
 export function GraphCanvas({ graph }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cyRef = useRef<Core | null>(null);
+  const theme = useTheme();
+  const palette = paletteForScheme(theme.palette.mode === 'dark' ? 'dark' : 'light');
 
+  // Effect 1: create / update the cytoscape instance from `graph`.
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return undefined;
+    if (!containerRef.current) return;
+    if (cyRef.current) {
+      updateCytoscape(cyRef.current, graph);
+    } else {
+      cyRef.current = createCytoscape(containerRef.current, graph, palette);
     }
-
-    const nodeIds = new Set(graph.nodes.map(n => n.id));
-    const cy = cytoscape({
-      container,
-      elements: [
-        ...graph.nodes.map(n => ({ data: { id: n.id, label: n.label ?? n.id } })),
-        // Drop any edge whose endpoint is missing — cytoscape throws
-        // when an edge references a node that was not added.
-        ...graph.edges
-          .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to))
-          .map(e => ({ data: { source: e.from, target: e.to } })),
-      ],
-      style: [
-        {
-          selector: 'node',
-          style: {
-            label: 'data(label)',
-            'background-color': '#1976d2',
-            color: '#ffffff',
-            'font-size': 10,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'text-wrap': 'wrap',
-            'text-max-width': '72px',
-            width: 64,
-            height: 64,
-          },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 2,
-            'line-color': '#90a4ae',
-            'target-arrow-color': '#90a4ae',
-            'target-arrow-shape': 'triangle',
-            'curve-style': 'bezier',
-          },
-        },
-      ],
-      layout: { name: 'cose-bilkent' } as cytoscape.LayoutOptions,
-    });
-
-    return () => cy.destroy();
+    // palette is intentionally NOT a dep — palette changes flow
+    // through effect 2 (live restyle) without rerunning create /
+    // update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '70vh' }} />;
+  // Effect 2: live palette swap on theme change — preserves
+  // selection and layout.
+  useEffect(() => {
+    if (cyRef.current) {
+      applyAtlasPalette(cyRef.current, palette);
+    }
+  }, [palette]);
+
+  // Effect 3: destroy on unmount.
+  useEffect(() => {
+    return () => {
+      cyRef.current?.destroy();
+      cyRef.current = null;
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '70vh',
+        backgroundColor: palette.bg,
+        borderRadius: 2,
+      }}
+    />
+  );
 }

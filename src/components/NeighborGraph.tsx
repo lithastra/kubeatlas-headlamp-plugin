@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-import cytoscape from 'cytoscape';
+import { useTheme } from '@mui/material/styles';
+import cytoscape, { type Core } from 'cytoscape';
 import { useEffect, useRef } from 'react';
-import { Edge } from '../api/types';
+import { Edge, GraphView } from '../api/types';
+import {
+  applyAtlasPalette,
+  buildAtlasStylesheet,
+  elementsFromView,
+} from '../lib/cytoscape';
+import { paletteForScheme } from '../lib/themePalettes';
 
 export interface NeighborGraphProps {
   centerId: string;
@@ -25,90 +32,101 @@ export interface NeighborGraphProps {
   outgoing: Edge[];
 }
 
-// shortLabel trims a KubeAtlas resource id (namespace/Kind/name) down
-// to its Kind/name tail so neighbour nodes stay readable.
-function shortLabel(id: string): string {
-  return id.split('/').slice(-2).join('/');
+// Parse a KubeAtlas resource id ([clusterID:]<namespace>/<kind>/<name>)
+// back into its parts so the cartography stylesheet's family / shape
+// rules light up the same way they do in the standalone web UI.
+function parseId(id: string): { namespace?: string; kind?: string; name?: string } {
+  let rest = id;
+  const colon = id.indexOf(':');
+  if (colon > -1 && colon < id.indexOf('/')) {
+    rest = id.slice(colon + 1);
+  }
+  const parts = rest.split('/');
+  if (parts.length === 3) {
+    const [namespace, kind, name] = parts;
+    return { namespace: namespace || undefined, kind, name };
+  }
+  return {};
 }
 
 // NeighborGraph renders the one-hop dependency neighbourhood of a
-// single resource: the resource at the centre, its incoming and
-// outgoing neighbours around it. It is intentionally a separate,
-// small component from the cluster-level GraphCanvas — a star layout
-// reads better than a force-directed one for a handful of nodes.
+// single resource using the same cartography stylesheet the cluster
+// canvas uses. Synthesises a GraphView from (center, incoming,
+// outgoing) so elementsFromView + buildAtlasStylesheet can apply the
+// node-family shapes + edge-type encoding. Layout stays concentric —
+// a star reads better than a force layout for a handful of nodes.
 export function NeighborGraph({ centerId, centerLabel, incoming, outgoing }: NeighborGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cyRef = useRef<Core | null>(null);
+  const theme = useTheme();
+  const palette = paletteForScheme(theme.palette.mode === 'dark' ? 'dark' : 'light');
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      return undefined;
-    }
+    if (!container) return undefined;
 
-    const labels = new Map<string, string>([[centerId, centerLabel]]);
-    const edges: { source: string; target: string; label: string }[] = [];
-    for (const e of incoming) {
-      labels.set(e.from, shortLabel(e.from));
-      edges.push({ source: e.from, target: centerId, label: e.type });
-    }
-    for (const e of outgoing) {
-      labels.set(e.to, shortLabel(e.to));
-      edges.push({ source: centerId, target: e.to, label: e.type });
-    }
+    // Build a GraphView whose nodes carry the parsed kind/namespace
+    // so the family classifier picks the right shape.
+    const seen = new Map<string, ReturnType<typeof parseId>>();
+    seen.set(centerId, parseId(centerId));
+    for (const e of incoming) if (!seen.has(e.from)) seen.set(e.from, parseId(e.from));
+    for (const e of outgoing) if (!seen.has(e.to)) seen.set(e.to, parseId(e.to));
+
+    const view: GraphView = {
+      level: 'resource',
+      nodes: [...seen.entries()].map(([id, p]) => ({
+        id,
+        type: 'resource',
+        kind: p.kind,
+        namespace: p.namespace,
+        name: p.name,
+        label: id === centerId ? centerLabel : (p.kind && p.name ? `${p.kind}/${p.name}` : id),
+      })),
+      edges: [
+        ...incoming.map(e => ({ from: e.from, to: centerId, type: e.type, count: 1 })),
+        ...outgoing.map(e => ({ from: centerId, to: e.to, type: e.type, count: 1 })),
+      ],
+    };
 
     const cy = cytoscape({
       container,
-      elements: [
-        ...[...labels.entries()].map(([id, label]) => ({
-          data: { id, label },
-          classes: id === centerId ? 'center' : 'neighbor',
-        })),
-        ...edges.map(e => ({ data: e })),
-      ],
-      style: [
-        {
-          selector: 'node',
-          style: {
-            label: 'data(label)',
-            'background-color': '#90a4ae',
-            color: '#ffffff',
-            'font-size': 9,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'text-wrap': 'wrap',
-            'text-max-width': '80px',
-            width: 56,
-            height: 56,
-          },
-        },
-        {
-          selector: 'node.center',
-          style: { 'background-color': '#1976d2', width: 72, height: 72 },
-        },
-        {
-          selector: 'edge',
-          style: {
-            label: 'data(label)',
-            'font-size': 8,
-            color: '#607d8b',
-            width: 2,
-            'line-color': '#b0bec5',
-            'target-arrow-color': '#b0bec5',
-            'target-arrow-shape': 'triangle',
-            'curve-style': 'bezier',
-          },
-        },
-      ],
-      layout: {
-        name: 'concentric',
-        concentric: node => (node.data('id') === centerId ? 2 : 1),
-        levelWidth: () => 1,
-        minNodeSpacing: 40,
-      } as cytoscape.LayoutOptions,
+      elements: elementsFromView(view),
+      style: buildAtlasStylesheet(palette) as unknown as cytoscape.StylesheetCSS[],
     });
+    // Star layout — the centre node sits in the middle, neighbours
+    // ring around it. levelWidth=1 forces a single neighbour ring.
+    cy.layout({
+      name: 'concentric',
+      concentric: node => (node.data('id') === centerId ? 2 : 1),
+      levelWidth: () => 1,
+      minNodeSpacing: 50,
+      fit: true,
+      padding: 24,
+    } as cytoscape.LayoutOptions).run();
 
-    return () => cy.destroy();
-  }, [centerId, centerLabel, incoming, outgoing]);
+    cyRef.current = cy;
+    return () => {
+      cy.destroy();
+      cyRef.current = null;
+    };
+  }, [centerId, centerLabel, incoming, outgoing, palette]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '420px' }} />;
+  // Live palette swap on theme toggle without rerunning layout.
+  useEffect(() => {
+    if (cyRef.current) {
+      applyAtlasPalette(cyRef.current, palette);
+    }
+  }, [palette]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '420px',
+        backgroundColor: palette.bg,
+        borderRadius: 2,
+      }}
+    />
+  );
 }

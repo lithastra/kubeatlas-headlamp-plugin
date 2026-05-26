@@ -27,18 +27,33 @@ export interface KubeAtlasService {
   port: number;
 }
 
-// GraphNode is one node of an aggregated view. At cluster level each
-// node is a namespace.
+// GraphNode is one node of an aggregated view. The server fills the
+// same shape regardless of level; not every field is populated at
+// every level (e.g. `kind`/`namespace`/`name` are only set for
+// non-aggregated rows, cluster-level rows live with just `id` +
+// `label` + `children_count`).
 export interface GraphNode {
   id: string;
+  type?: 'aggregated' | 'resource';
   label?: string;
+  kind?: string;
+  namespace?: string;
+  name?: string;
   children_count?: number;
+  children_summary?: Record<string, number>;
+  edge_count_in?: number;
+  edge_count_out?: number;
+  // FederatedView nodes carry this; single-cluster views leave it
+  // empty. The cartography stylesheet uses it to paint a per-cluster
+  // border tint when present.
+  clusterId?: string;
 }
 
 // GraphEdge is one aggregated edge between two nodes.
 export interface GraphEdge {
   from: string;
   to: string;
+  type?: string;
   count?: number;
 }
 
