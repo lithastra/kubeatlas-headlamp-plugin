@@ -1,6 +1,6 @@
 {
   "name": "@lithastra/kubeatlas-headlamp-plugin",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Dependency graph plugin for Headlamp powered by KubeAtlas",
   "license": "Apache-2.0",
   "homepage": "https://github.com/lithastra/kubeatlas-headlamp-plugin",
@@ -16,7 +16,7 @@
     "lint-fix": "headlamp-plugin lint --fix",
     "package": "headlamp-plugin package",
     "tsc": "headlamp-plugin tsc",
-    "test": "headlamp-plugin test",
+    "test": "vitest run -c vitest.config.ts",
     "i18n": "headlamp-plugin i18n"
   },
   "keywords": [
