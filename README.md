@@ -66,13 +66,14 @@ stylesheet is a code-level port of the main repo's
   through Headlamp's API server proxy (a `kubectl atlas
   --local-ui` localhost server is not reachable from the
   plugin — they're in different network namespaces).
-- [Headlamp](https://headlamp.dev) — desktop or in-cluster, >= 0.25.
+- [Headlamp](https://headlamp.dev) — desktop or in-cluster, >= 0.30
+  (verified against 0.42, the latest at time of writing).
 
 ## Compatibility matrix
 
 | Plugin | KubeAtlas server | Headlamp |
 |--------|------------------|----------|
-| 1.0.x  | >= 1.3           | >= 0.25  |
+| 1.0.x  | >= 1.3           | >= 0.30  |
 
 ## Install
 
@@ -93,10 +94,15 @@ Then either:
 - Run `npm run start` to load the plugin into a local Headlamp
   during development; or
 - Copy `dist/main.js` + `package.json` into Headlamp's plugins
-  directory:
-  - Linux: `~/.config/Headlamp/plugins/kubeatlas/`
-  - macOS: `~/Library/Application Support/Headlamp/plugins/kubeatlas/`
-  - Windows: `%APPDATA%\Headlamp\plugins\kubeatlas\`
+  directory. From Headlamp 0.30 onwards the path lives under a
+  `Config/` segment:
+  - Linux: `~/.config/Headlamp/Config/plugins/kubeatlas/`
+  - macOS: `~/Library/Application Support/Headlamp/Config/plugins/kubeatlas/`
+  - Windows: `%APPDATA%\Headlamp\Config\plugins\kubeatlas\`
+
+  (Older Headlamp builds used `Headlamp/plugins/` without the
+  `Config/` segment; both paths still work in 0.30+ but the
+  current binary writes to the `Config/` form, so prefer that.)
 
 Restart Headlamp (or toggle the plugin off / on under **Settings
 → Plugins**). The **Dependency Graph** entry appears in the
