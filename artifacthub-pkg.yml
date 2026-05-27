@@ -3,7 +3,7 @@
 # Placeholder — this is completed and the createdAt / digest / version
 # verified before the plugin is first published to Artifact Hub.
 # See https://artifacthub.io/docs/topics/repositories/headlamp-plugins/
-version: 0.1.0
+version: 1.0.0
 name: kubeatlas
 displayName: KubeAtlas Dependency Graph
 createdAt: "2026-05-17T00:00:00Z"
