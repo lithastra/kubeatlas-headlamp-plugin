@@ -94,15 +94,14 @@ Then either:
 - Run `npm run start` to load the plugin into a local Headlamp
   during development; or
 - Copy `dist/main.js` + `package.json` into Headlamp's plugins
-  directory. From Headlamp 0.30 onwards the path lives under a
-  `Config/` segment:
-  - Linux: `~/.config/Headlamp/Config/plugins/kubeatlas/`
-  - macOS: `~/Library/Application Support/Headlamp/Config/plugins/kubeatlas/`
+  directory. Per the [canonical docs](https://headlamp.dev/docs/latest/development/plugins/building):
+  - Linux: `$HOME/.config/Headlamp/plugins/kubeatlas/`
+  - macOS: `$HOME/.config/Headlamp/plugins/kubeatlas/`
   - Windows: `%APPDATA%\Headlamp\Config\plugins\kubeatlas\`
 
-  (Older Headlamp builds used `Headlamp/plugins/` without the
-  `Config/` segment; both paths still work in 0.30+ but the
-  current binary writes to the `Config/` form, so prefer that.)
+  (Note: only Windows has the extra `Config\` segment in its path.
+  Linux and macOS Headlamp Desktop both use XDG-style
+  `~/.config/Headlamp/`.)
 
 Restart Headlamp (or toggle the plugin off / on under **Settings
 → Plugins**). The **Dependency Graph** entry appears in the
@@ -119,6 +118,13 @@ cluster sidebar.
 3. The canvas loads with the cluster-level view. Pick a namespace
    from the dropdown to focus, tap any node for the detail
    drawer, or right-click for the blast-radius radial.
+
+## Publishing
+
+See [PUBLISHING.md](./PUBLISHING.md) for the full recipe to cut a
+new version, vendor it into
+[`headlamp-k8s/plugins`](https://github.com/headlamp-k8s/plugins),
+and open the Plugin Catalog PR.
 
 ## Development
 
