@@ -117,7 +117,7 @@ cluster sidebar.
    defaults). Confirm or override and continue.
 3. The canvas loads with the cluster-level view. Pick a namespace
    from the dropdown to focus, tap any node for the detail
-   drawer, or right-click for the blast-radius radial.
+   drawer and click **↯ Show blast radius** to highlight impact.
 
 ## Publishing
 

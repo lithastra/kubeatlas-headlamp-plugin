@@ -14,7 +14,7 @@ npm install        # install the toolchain
 npm run start      # dev server; load the plugin into a local Headlamp
 npm run lint       # eslint + prettier check
 npm run tsc        # type-check
-npm run test       # jest unit tests
+npm run test       # vitest unit tests
 npm run build      # production build -> dist/main.js
 ```
 
