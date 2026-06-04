@@ -15,7 +15,13 @@
  */
 
 import { ApiProxy } from '@kinvolk/headlamp-plugin/lib';
-import { GraphView, KubeAtlasService, ResourceNeighbors } from './types';
+import {
+  ConstraintAffectedResponse,
+  GraphView,
+  KubeAtlasService,
+  PolicyConstraint,
+  ResourceNeighbors,
+} from './types';
 
 // serviceProxyPath builds the path to a KubeAtlas endpoint through
 // the Kubernetes API server's service proxy
@@ -84,4 +90,28 @@ export async function fetchResourceNeighbors(
     incoming: Array.isArray(detail?.incoming) ? detail.incoming : [],
     outgoing: Array.isArray(detail?.outgoing) ? detail.outgoing : [],
   };
+}
+
+// fetchPolicyConstraints retrieves every Gatekeeper Constraint and
+// Kyverno policy (with live violation counts) from a KubeAtlas Service.
+// The response is a bare array. An optional engine filters the list.
+export async function fetchPolicyConstraints(
+  svc: KubeAtlasService,
+  engine?: string
+): Promise<PolicyConstraint[]> {
+  const ep = engine
+    ? `api/v1/policy/constraints?engine=${encodeURIComponent(engine)}`
+    : 'api/v1/policy/constraints';
+  const result = await ApiProxy.request(serviceProxyPath(svc, ep), { isJSON: true });
+  return Array.isArray(result) ? result : [];
+}
+
+// fetchConstraintAffected retrieves the resources a named constraint
+// enforces, each flagged with its violation status.
+export async function fetchConstraintAffected(
+  svc: KubeAtlasService,
+  name: string
+): Promise<ConstraintAffectedResponse> {
+  const ep = `api/v1/policy/constraints/${encodeURIComponent(name)}/affected`;
+  return ApiProxy.request(serviceProxyPath(svc, ep), { isJSON: true });
 }

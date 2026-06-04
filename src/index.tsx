@@ -21,6 +21,7 @@ import {
   registerSidebarEntry,
 } from '@kinvolk/headlamp-plugin/lib';
 import { DependencyGraphPage } from './pages/DependencyGraph';
+import { PolicyView } from './pages/PolicyView';
 import { DependenciesSection, isSupportedKind } from './sections/DependenciesSection';
 
 // The plugin contributes a top-level "Dependency Graph" sidebar entry
@@ -38,6 +39,23 @@ registerRoute({
   sidebar: 'kubeatlas-dependency-graph',
   name: 'Dependency Graph',
   component: () => <DependencyGraphPage />,
+});
+
+// A sibling "Policies" view: Gatekeeper Constraints / Kyverno policies
+// and the resources they enforce.
+registerSidebarEntry({
+  parent: null,
+  name: 'kubeatlas-policy',
+  label: 'Policies',
+  url: '/kubeatlas-policy',
+  icon: 'mdi:shield-check-outline',
+});
+
+registerRoute({
+  path: '/kubeatlas-policy',
+  sidebar: 'kubeatlas-policy',
+  name: 'Policies',
+  component: () => <PolicyView />,
 });
 
 // It also adds a "KubeAtlas Dependencies" section to the details page

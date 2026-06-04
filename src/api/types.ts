@@ -78,3 +78,36 @@ export interface ResourceNeighbors {
   incoming: Edge[];
   outgoing: Edge[];
 }
+
+// KubeAtlasResource is the subset of a graph resource the policy view
+// renders (the /affected endpoint embeds full resource objects).
+export interface KubeAtlasResource {
+  kind: string;
+  name: string;
+  namespace: string;
+}
+
+// PolicyConstraint summarises one admission-policy constraint. The body
+// of GET /api/v1/policy/constraints is a bare array of these.
+export interface PolicyConstraint {
+  name: string;
+  kind: string;
+  engine: string;
+  violations: number;
+}
+
+// AffectedResource is one resource a constraint enforces, with its
+// current violation status.
+export interface AffectedResource {
+  resource: KubeAtlasResource;
+  violated: boolean;
+  message?: string;
+}
+
+// ConstraintAffectedResponse is the body of
+// GET /api/v1/policy/constraints/{name}/affected.
+export interface ConstraintAffectedResponse {
+  constraint: string;
+  resources: AffectedResource[];
+  count: number;
+}
