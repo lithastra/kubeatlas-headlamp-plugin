@@ -19,6 +19,8 @@ import {
   ConstraintAffectedResponse,
   GraphView,
   KubeAtlasService,
+  OtelOverlayResponse,
+  OtelTraceSummary,
   PolicyConstraint,
   ResourceNeighbors,
 } from './types';
@@ -114,4 +116,51 @@ export async function fetchConstraintAffected(
 ): Promise<ConstraintAffectedResponse> {
   const ep = `api/v1/policy/constraints/${encodeURIComponent(name)}/affected`;
   return ApiProxy.request(serviceProxyPath(svc, ep), { isJSON: true });
+}
+
+// --- OTel runtime overlay (F-204, KubeAtlas v1.5) -------------------
+
+// otelOverlayPath builds the overlay endpoint path with its query
+// string. Pure and exported so it can be unit-tested without a live
+// server (the fetch wrappers below just proxy it).
+export function otelOverlayPath(namespace: string, compare = false): string {
+  const parts: string[] = [];
+  if (namespace) parts.push(`namespace=${encodeURIComponent(namespace)}`);
+  if (compare) parts.push('compare=true');
+  return `api/v1/otel/overlay${parts.length ? `?${parts.join('&')}` : ''}`;
+}
+
+// otelTracesPath builds the traces endpoint path. An empty service
+// matches every service.
+export function otelTracesPath(service?: string): string {
+  const qs = service ? `?service=${encodeURIComponent(service)}` : '';
+  return `api/v1/otel/traces${qs}`;
+}
+
+// fetchOtelOverlay retrieves the observed CALLS_AT_RUNTIME edges for a
+// namespace. The overlay is Tier 2 + otel.enabled only; a server with
+// it off answers 503, which rejects the promise — callers surface it as
+// "overlay not available".
+export async function fetchOtelOverlay(
+  svc: KubeAtlasService,
+  namespace: string
+): Promise<OtelOverlayResponse> {
+  const path = serviceProxyPath(svc, otelOverlayPath(namespace));
+  const r = await ApiProxy.request(path, { isJSON: true });
+  return {
+    namespace: typeof r?.namespace === 'string' ? r.namespace : namespace,
+    edges: Array.isArray(r?.edges) ? r.edges : [],
+    count: typeof r?.count === 'number' ? r.count : 0,
+  };
+}
+
+// fetchOtelTraces retrieves recent trace summaries, optionally filtered
+// to one service.
+export async function fetchOtelTraces(
+  svc: KubeAtlasService,
+  service?: string
+): Promise<OtelTraceSummary[]> {
+  const path = serviceProxyPath(svc, otelTracesPath(service));
+  const r = await ApiProxy.request(path, { isJSON: true });
+  return Array.isArray(r?.traces) ? r.traces : [];
 }
