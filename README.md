@@ -38,6 +38,13 @@ KubeAtlas web UI, embedded in the cluster console you already use.
   pages, a "KubeAtlas Dependencies" section renders the one-hop
   neighbourhood graph for the resource you're looking at.
 
+- **OTel runtime overlay** — with a KubeAtlas server >= 1.5 running
+  Tier 2 with `otel.enabled`, overlay the observed runtime call graph
+  (`CALLS_AT_RUNTIME`) on the declared dependency graph, toggle
+  declared-vs-observed, and open a **TraceTimeline** that deep-links
+  spans out to your Jaeger or Tempo UI. When the server has no OTel
+  data the view shows a clear message instead of failing.
+
 - **Theme-aware** — palette follows Headlamp's light/dark mode
   (Parchment for light, Slate for dark) with WCAG AA contrast on
   every text surface.
