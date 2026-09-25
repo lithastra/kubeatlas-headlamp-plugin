@@ -11,6 +11,7 @@
   "scripts": {
     "start": "headlamp-plugin start",
     "build": "headlamp-plugin build",
+    "storybook:build": "headlamp-plugin storybook-build",
     "format": "headlamp-plugin format",
     "lint": "headlamp-plugin lint",
     "lint-fix": "headlamp-plugin lint --fix",
@@ -18,7 +19,7 @@
     "tsc": "headlamp-plugin tsc",
     "test": "vitest run -c vitest.config.ts",
     "audit:prod": "npm audit --omit=dev --audit-level=low",
-    "audit:tooling": "npm audit --include=dev --audit-level=high",
+    "audit:tooling": "npm audit --include=dev --audit-level=moderate",
     "i18n": "headlamp-plugin i18n"
   },
   "keywords": [
@@ -38,11 +39,27 @@
     ]
   },
   "overrides": {
-    "typescript": "5.6.2"
+    "typescript": "5.6.2",
+    "@kinvolk/headlamp-plugin": {
+      "vitest": "4.1.11",
+      "@vitest/coverage-istanbul": "4.1.11",
+      "storybook": "10.6.0",
+      "@storybook/addon-docs": "10.6.0",
+      "@storybook/addon-links": "10.6.0",
+      "@storybook/react-vite": "10.6.0",
+      "@storybook/react-webpack5": "10.6.0",
+      "@storybook/addon-webpack5-compiler-swc": "4.0.3"
+    }
   },
   "devDependencies": {
     "@kinvolk/headlamp-plugin": "^0.14.0",
-    "@types/cytoscape": "^3.31.0"
+    "@storybook/addon-docs": "10.6.0",
+    "@storybook/addon-links": "10.6.0",
+    "@storybook/addon-webpack5-compiler-swc": "4.0.3",
+    "@storybook/react-vite": "10.6.0",
+    "@storybook/react-webpack5": "10.6.0",
+    "@types/cytoscape": "^3.31.0",
+    "storybook": "10.6.0"
   },
   "dependencies": {
     "cytoscape": "^3.34.1",
