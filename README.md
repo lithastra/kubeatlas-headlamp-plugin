@@ -74,8 +74,10 @@ stylesheet is a code-level port of the main repo's
   through Headlamp's API server proxy (a `kubectl atlas
   --local-ui` localhost server is not reachable from the
   plugin — they're in different network namespaces).
-- [Headlamp](https://headlamp.dev) — desktop or in-cluster, >= 0.30
-  (verified against 0.42, the latest at time of writing).
+- [Headlamp](https://headlamp.dev) — desktop or in-cluster. The declared
+  compatibility range is >= 0.30; the latest targeted interaction check used
+  the official `v0.42.0` container with a mock Kubernetes/KubeAtlas API.
+  This is not a test of every supported host version or a real cluster.
 
 ## Compatibility matrix
 
@@ -91,15 +93,35 @@ generic error.
 
 ## Install
 
-### From the Plugin Catalog (recommended)
+### From a published GitHub release
 
-Search "KubeAtlas" in Headlamp's Plugin Catalog and install with
-one click.
+Choose a published version from
+[GitHub Releases](https://github.com/lithastra/kubeatlas-headlamp-plugin/releases).
+Download its `lithastra-kubeatlas-headlamp-plugin-<version>.tar.gz` asset
+and verify the SHA-256 against that release's recorded checksum before
+extracting it. A version in `package.json` on a development branch is not
+proof that a matching release asset exists.
+
+The archive contains a `kubeatlas-headlamp-plugin/` directory with `main.js`
+and `package.json`. With Headlamp stopped, back up any existing KubeAtlas
+plugin outside the plugins directory, then extract the archive into the
+plugin root directory listed below. Avoid loading both an old `kubeatlas/`
+directory and the new `kubeatlas-headlamp-plugin/` directory: they register
+the same plugin. Keep other plugins untouched.
+
+### From the Plugin Catalog
+
+Catalog distribution is separate from this repository's GitHub releases.
+If KubeAtlas is available in your catalog, check the listed version and
+download source before installing. An open or updated upstream catalog PR
+does not prove that a version has been published or indexed. Use the
+standalone release installation path when the catalog does not offer the
+version you need.
 
 ### From source (development / pre-release)
 
 ```bash
-npm ci
+npm ci --strict-peer-deps --engine-strict
 npm run build          # produces dist/main.js
 ```
 
@@ -107,11 +129,13 @@ Then either:
 
 - Run `npm run start` to load the plugin into a local Headlamp
   during development; or
-- Copy `dist/main.js` + `package.json` into Headlamp's plugins
-  directory. Per the [canonical docs](https://headlamp.dev/docs/latest/development/plugins/building):
-  - Linux: `$HOME/.config/Headlamp/plugins/kubeatlas/`
-  - macOS: `$HOME/.config/Headlamp/plugins/kubeatlas/`
-  - Windows: `%APPDATA%\Headlamp\Config\plugins\kubeatlas\`
+- Copy `dist/main.js` + `package.json` into a single
+  `kubeatlas-headlamp-plugin/` child directory under Headlamp's plugin root.
+  Per the [canonical docs](https://headlamp.dev/docs/latest/development/plugins/building),
+  desktop defaults are:
+  - Linux: `$HOME/.config/Headlamp/plugins/`
+  - macOS: `$HOME/.config/Headlamp/plugins/`
+  - Windows: `%APPDATA%\Headlamp\Config\plugins\`
 
   (Note: only Windows has the extra `Config\` segment in its path.
   Linux and macOS Headlamp Desktop both use XDG-style
@@ -136,10 +160,9 @@ cluster sidebar.
 
 ## Publishing
 
-See [PUBLISHING.md](./PUBLISHING.md) for the full recipe to cut a
-new version, vendor it into
-[`headlamp-k8s/plugins`](https://github.com/headlamp-k8s/plugins),
-and open the Plugin Catalog PR.
+See [PUBLISHING.md](./PUBLISHING.md) for release preparation, archive
+verification, and the separate GitHub release and catalog workflows.
+See [CHANGELOG.md](./CHANGELOG.md) for changes and validation limits.
 
 ## Development
 
@@ -147,7 +170,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the toolchain
 commands and contribution workflow. The short loop:
 
 ```bash
-npm ci
+npm ci --strict-peer-deps --engine-strict
 npm run tsc            # type-check
 npm run lint           # eslint
 npm test               # vitest

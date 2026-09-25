@@ -1,438 +1,157 @@
-# Releasing v1.0.0 — paste-runnable commands
+# Releasing the Headlamp plugin
 
-Copy and paste each block. No `<placeholder>` strings except where
-explicitly called out.
+This tracked document describes the standalone release process for
+`lithastra/kubeatlas-headlamp-plugin`. A release-preparation PR does not
+publish a tag, a GitHub release, an npm package, or a catalog entry.
+Publishing requires a separate maintainer decision after verification.
 
-Assumes:
-- Standalone repo at `~/kubeatlas-headlamp-plugin/`
-- Headlamp catalog fork at `~/headlamp-k8s-plugins/`
-- Headlamp Desktop installed (verified against 0.42)
-- `gh` CLI authenticated against the GitHub account that owns the
-  catalog fork
-- A real Kubernetes cluster (with KubeAtlas running) for the
-  smoke test
+## 1. Prepare the release commit
 
-This file is local-only — it is NOT committed and NOT in
-`.gitignore`. Don't `git add .` blindly or you'll re-add it.
+- Use a clean checkout and a release-preparation branch based on current
+  `main`. Preserve unrelated work and existing archives.
+- Use Node.js 22 and npm 10, matching CI. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Update the version in `package.json` and both root version fields in
+  `package-lock.json`, without unrelated lockfile changes.
+- Update [CHANGELOG.md](./CHANGELOG.md), including known limitations and
+  the distinction between declared compatibility and tested environments.
+- Keep generated files, local fixtures, screenshots, private evidence,
+  credentials, and machine-specific helper scripts out of Git.
+- Commit with Conventional Commits and DCO, open a PR, and require CI.
+  Do not push a release change directly to `main` or create a tag yet.
 
----
+## 2. Validate and build
 
-## 1. Pre-flight (60 seconds)
+Run from the plugin repository. The commands below use a POSIX shell;
+Windows maintainers can use WSL or equivalent native commands. No
+maintainer-specific checkout path is required.
 
-```bash
-cd ~/kubeatlas-headlamp-plugin
-
-# 1a. Tree clean, on main
-git fetch origin
-git status -sb
-
-# 1b. Versions match what we're releasing
-grep '"version"' package.json
-grep '^version:' artifacthub-pkg.yml
-# Both should say 1.0.0
-
-# 1c. Gates
-npm install
+```sh
+npm ci --strict-peer-deps --engine-strict
 npm run lint
 npm run tsc
-npm test
+npm run test
+npm run audit:prod
+npm run audit:tooling
 npm run build
-ls -la dist/main.js
+STORYBOOK_DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 npm run storybook:build
+git diff --check
+git status --short
 ```
 
-If anything fails, fix and re-run before continuing.
+Do not suppress failed checks or use `npm audit fix --force` to make a
+release pass. The current development audit permits low advisories;
+record them rather than claiming the dependency tree is advisory-free.
+Storybook compilation is not a rendered UI test: this repository has no stories.
 
----
+## 3. Package outside the checkout
 
-## 2. Push the README install-path fix to origin
+The locked Headlamp packaging command **does not build the plugin**. It
+copies the existing `dist/` files and `package.json`. Build from the exact
+candidate commit first, in a fresh checkout without stale `dist/` files.
 
-```bash
-git push origin main
-git status -sb     # should now read: ## main...origin/main
+It also uses the checkout directory's basename as the archive's top-level
+directory. Use a checkout named `kubeatlas-headlamp-plugin` for the
+standalone distribution, including when creating a temporary worktree.
+Do not package a randomly named worktree and silently ship that name.
+
+```sh
+test "$(basename "$PWD")" = kubeatlas-headlamp-plugin
+git rev-parse HEAD
+node -p 'require("./package.json").version'
+RELEASE_OUTPUT=$(mktemp -d)
+npm run package -- . "$RELEASE_OUTPUT"
 ```
 
----
+Keep the printed output path and archive checksum with the private
+validation record. The command refuses to overwrite an existing archive.
+This is a Headlamp plugin archive, not an npm registry publication.
 
-## 3. Build the release tarball
+For candidate `1.2.1`, expect
+`lithastra-kubeatlas-headlamp-plugin-1.2.1.tar.gz` containing only:
 
-```bash
-cd ~/kubeatlas-headlamp-plugin
-npm run package
+```text
+kubeatlas-headlamp-plugin/
+  main.js
+  package.json
 ```
 
-That command:
-1. Runs the build.
-2. Writes a tarball to the repo root.
-3. Prints the SHA256 to stdout.
-
-You'll see output like:
-
-```
-Created tarball: ".../lithastra-kubeatlas-headlamp-plugin-1.0.0.tar.gz".
-Tarball checksum (sha256): 25b2f6720c7f52929d7ec088cd3b11fc597d81fc19543ae06e91b0cc7f54cb43
-```
-
-Capture both values into shell variables (subsequent steps use
-them):
-
-```bash
-export TARBALL="$HOME/kubeatlas-headlamp-plugin/lithastra-kubeatlas-headlamp-plugin-1.0.0.tar.gz"
-export SHA=$(sha256sum "$TARBALL" | awk '{print $1}')
-echo "tarball: $TARBALL"
-echo "sha:     SHA256:$SHA"
-ls -la "$TARBALL"
-```
-
-The tarball contains only `main.js` + `package.json` inside a
-`kubeatlas-headlamp-plugin/` top-level directory. That's the
-canonical Headlamp plugin layout.
-
----
-
-## 4. Smoke-test the tarball locally
-
-Install it into Headlamp Desktop manually to make sure it loads.
-The plugins directory differs per OS:
-
-| OS | Plugins directory |
-|---|---|
-| Linux Headlamp Desktop | `$HOME/.config/Headlamp/plugins/` |
-| macOS Headlamp Desktop | `$HOME/.config/Headlamp/plugins/` |
-| Windows Headlamp Desktop | `%APPDATA%\Headlamp\Config\plugins\` |
-
-### On Linux / macOS
-
-```bash
-PLUGINS_DIR="$HOME/.config/Headlamp/plugins"
-mkdir -p "$PLUGINS_DIR"
-
-# Remove any previous install
-rm -rf "$PLUGINS_DIR/kubeatlas-headlamp-plugin" "$PLUGINS_DIR/kubeatlas"
-
-# Unpack — the tarball already has a kubeatlas-headlamp-plugin/ top-level dir
-tar -xzf "$TARBALL" -C "$PLUGINS_DIR"
-ls "$PLUGINS_DIR/kubeatlas-headlamp-plugin/"
-# Expected: main.js, package.json
-```
-
-### On Windows (PowerShell, from outside WSL)
-
-```powershell
-$dest = "$env:APPDATA\Headlamp\Config\plugins\kubeatlas-headlamp-plugin"
-Remove-Item -Recurse -Force $dest -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-
-# Replace "Ubuntu" with whatever `wsl --list` shows for your distro
-$tarball = "\\wsl$\Ubuntu\home\nick\kubeatlas-headlamp-plugin\lithastra-kubeatlas-headlamp-plugin-1.0.0.tar.gz"
-tar -xzf $tarball -C "$env:APPDATA\Headlamp\Config\plugins"
-ls $dest
-```
-
-### Smoke checklist
-
-Restart Headlamp Desktop. Then:
-
-1. **Settings → Plugins** — KubeAtlas listed and enabled.
-2. Click into your cluster.
-3. **Sidebar shows "Dependency Graph"** entry.
-4. Open it → canvas renders the cartography stylesheet.
-5. Pick a namespace from the dropdown → graph re-renders.
-6. Tap a node → drawer with incoming/outgoing edges.
-7. Click **↯ Show blast radius** → canvas dims correctly.
-8. Toggle Headlamp light/dark → palette swaps live.
-
-If any step breaks, **stop**. Fix in the standalone repo, re-run
-steps 1–3.
-
----
-
-## 5. Sync the catalog fork with upstream
-
-```bash
-cd ~/headlamp-k8s-plugins
-
-# One-time: add upstream remote if missing
-git remote get-url upstream 2>/dev/null || \
-  git remote add upstream https://github.com/headlamp-k8s/plugins.git
-
-# Fetch upstream + cut a fresh branch
-git fetch upstream
-git checkout -B kubeatlas-1.0.0 upstream/main
-```
-
----
-
-## 6. Vendor the plugin source into the catalog
-
-```bash
-SRC=$HOME/kubeatlas-headlamp-plugin
-DEST=$HOME/headlamp-k8s-plugins/kubeatlas
-
-mkdir -p "$DEST"
-
-rsync -av --delete \
-  --exclude='node_modules' \
-  --exclude='dist' \
-  --exclude='.git' \
-  --exclude='.github/' \
-  --exclude='docs/' \
-  --exclude='vitest.config.ts' \
-  --exclude='vitest.setup.ts' \
-  --include='README.md' \
-  --exclude='*.md' \
-  --exclude='/[0-9]*.[0-9]*.[0-9]*/' \
-  --exclude='LICENSE' \
-  --exclude='DCO' \
-  --exclude='lithastra-*.tar.gz' \
-  --exclude='*.tgz' \
-  "$SRC/" "$DEST/"
-
-# The standalone repo's .github/workflows/ci.yml is valid there but
-# dead config in the monorepo — GitHub only runs workflows from the
-# repo root, so a vendored kubeatlas/.github/ just confuses
-# maintainers. Exclude it above, and drop any copy a previous vendor
-# left behind.
-rm -rf "$DEST/.github"
-
-# Upstream CI doesn't have our vitest config; reset the test
-# script back to the headlamp-plugin shim.
-sed -i 's|"test": "vitest run -c vitest.config.ts"|"test": "headlamp-plugin test"|' \
-  "$DEST/package.json"
-
-ls "$DEST"
-```
-
----
-
-## 7. Verify the catalog copy builds clean
-
-```bash
-cd ~/headlamp-k8s-plugins/kubeatlas
-rm -rf node_modules dist
-npm install
-npm run lint
-npm run tsc
-npm test
-npm run build
-ls -la dist/main.js
-
-# Drop local-only build outputs before committing
-rm -rf node_modules dist *.tar.gz
-```
-
----
-
-## 8. Write the version manifest
-
-```bash
-cd ~/headlamp-k8s-plugins/kubeatlas
-mkdir -p 1.0.0
-
-# $SHA was captured in step 3
-echo "Using checksum: SHA256:$SHA"
-
-cat > 1.0.0/artifacthub-pkg.yml <<EOF
-version: 1.0.0
-name: headlamp_kubeatlas
-displayName: KubeAtlas
-createdAt: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-logoURL: "https://raw.githubusercontent.com/lithastra/kubeatlas/main/docs/static/img/logo.svg"
-description: "Dependency graph plugin for Headlamp powered by KubeAtlas."
-keywords:
-  - dependency
-  - graph
-  - topology
-  - kubeatlas
-  - visualization
-homeURL: "https://github.com/lithastra/kubeatlas-headlamp-plugin"
-license: Apache-2.0
-links:
-  - name: source
-    url: "https://github.com/lithastra/kubeatlas-headlamp-plugin"
-  - name: docs
-    url: "https://docs.kubeatlas.lithastra.com"
-maintainers:
-  - name: lithastra
-    email: dev@lithastra.com
-changes:
-  - kind: added
-    description: "First stable release. Cartography stylesheet, namespace selector, per-resource detail drawer with incoming/outgoing edges, blast-radius mode, and the Headlamp details-view Dependencies section."
-annotations:
-  headlamp/plugin/archive-url: "https://github.com/headlamp-k8s/plugins/releases/download/kubeatlas-1.0.0/headlamp-k8s-kubeatlas-1.0.0.tar.gz"
-  headlamp/plugin/archive-checksum: "SHA256:$SHA"
-  headlamp/plugin/version-compat: ">=0.30"
-  headlamp/plugin/distro-compat: "in-cluster,web,docker-desktop,desktop"
-EOF
-
-cat > 1.0.0/README.md <<'EOF'
-KubeAtlas plugin v1.0.0 for Headlamp.
-
-See [../README.md](../README.md) for the full description, install
-steps, and screenshots.
-EOF
-
-# Confirm contents
-cat 1.0.0/artifacthub-pkg.yml
-```
-
-The `archive-url` points at the catalog repo, not ours, because
-the catalog's release pipeline tags `kubeatlas-1.0.0` and
-publishes the asset there after the PR merges. Cross-check the
-URL form against
-<https://github.com/headlamp-k8s/plugins/blob/main/cert-manager/0.1.0/artifacthub-pkg.yml>
-before opening the PR — if upstream's convention has shifted,
-match what the most-recently-merged plugin uses.
-
----
-
-## 9. Commit + push to your fork
-
-```bash
-cd ~/headlamp-k8s-plugins
-
-git add kubeatlas/
-git status
-git diff --staged --stat | head -30
-
-git commit -s -m "$(cat <<'EOF'
-feat(kubeatlas): add v1.0.0
-
-KubeAtlas (https://github.com/lithastra/kubeatlas) is a read-only
-Kubernetes resource dependency-graph explorer. This plugin embeds
-its cluster + per-resource graph views inside Headlamp.
-
-Features:
-- Cluster-level dependency graph (cartography stylesheet)
-- Namespace selector
-- Per-resource detail drawer with incoming/outgoing edges
-- Blast-radius mode (BFS dim/brighten)
-- Blast-radius mode with depth + direction controls
-- KubeAtlas Dependencies section on Headlamp resource detail pages
-- Theme-aware palette (Parchment / Slate, WCAG AA)
-
-Compatibility:
-- Headlamp >= 0.30 (verified against 0.42)
-- KubeAtlas server >= 1.3.0
-
-Upstream source: https://github.com/lithastra/kubeatlas-headlamp-plugin
-EOF
-)"
-
-git push origin kubeatlas-1.0.0
-```
-
----
-
-## 10. Open the PR
-
-```bash
-cd ~/headlamp-k8s-plugins
-
-gh repo set-default headlamp-k8s/plugins
-
-gh pr create \
-  --title "Add KubeAtlas plugin v1.0.0" \
-  --body "$(cat <<'EOF'
-KubeAtlas is a read-only Kubernetes resource dependency-graph
-explorer. It answers questions like *"if I delete this Secret,
-what breaks?"* with a visual blast-radius graph.
-
-This plugin embeds KubeAtlas's cluster + per-resource graph views
-directly inside Headlamp:
-
-- Cluster-level dependency graph (cartography stylesheet — six
-  node-family shapes, edge encoding by weight/dash/colour/arrow)
-- Namespace selector
-- Per-resource selection drawer with incoming/outgoing edges
-- Blast-radius mode (BFS dim/brighten)
-- Blast-radius mode via detail drawer button
-- "KubeAtlas Dependencies" section on Headlamp's resource detail pages
-- Theme-aware palette (Parchment for light, Slate for dark)
-
-**Source repo:** https://github.com/lithastra/kubeatlas-headlamp-plugin
-**Docs:**        https://docs.kubeatlas.lithastra.com
-**License:**     Apache-2.0
-
-Requires an in-cluster KubeAtlas server (>= 1.3.0).
-Headlamp >= 0.30 (verified against 0.42).
-
-Tested by installing the `npm run package` tarball into Headlamp
-Desktop and walking the cluster view, namespace selector, detail
-drawer, and blast-radius mode.
-EOF
-)"
-
-gh pr view --json url --jq .url
-```
-
----
-
-## 11. Watch CI
-
-```bash
-gh pr checks --watch
-```
-
-If anything fails:
-
-```bash
-# See the failing job
-gh pr checks --json name,state,link --jq '.[] | select(.state=="FAILURE")'
-# Fix, then re-run steps 6-9 (the PR auto-updates on push)
-```
-
----
-
-## 12. After the PR merges
-
-Catalog maintainers (or their CI) tag `kubeatlas-1.0.0` on the
-catalog repo and publish `headlamp-k8s-kubeatlas-1.0.0.tar.gz`.
-The `archive-url` in your manifest then resolves.
-
-Within ~24 hours, ArtifactHub indexes the new package at
-<https://artifacthub.io/packages/search?repo=headlamp-default>.
-Headlamp Desktop's Plugin Catalog UI shows it after that
-indexing completes.
-
-Verify:
-
-```bash
-# Tag exists on the catalog repo
-gh release view kubeatlas-1.0.0 --repo headlamp-k8s/plugins
-
-# Asset is reachable
-curl -sIL -o /dev/null -w '%{http_code}\n' \
-  https://github.com/headlamp-k8s/plugins/releases/download/kubeatlas-1.0.0/headlamp-k8s-kubeatlas-1.0.0.tar.gz
-# Expect: 200
-```
-
----
-
-## 13. v1.0.1 and beyond
-
-Same flow, swap `1.0.0` → `1.0.1` in every command. Keep the
-older `kubeatlas/1.0.0/` subdir intact — users who pinned can
-still install it.
-
-For the standalone repo bump:
-
-```bash
-cd ~/kubeatlas-headlamp-plugin
-sed -i 's/"version": "1.0.0"/"version": "1.0.1"/' package.json
-sed -i 's/^version: 1.0.0$/version: 1.0.1/' artifacthub-pkg.yml
-
-git add package.json package-lock.json artifacthub-pkg.yml
-git commit -s -m "chore: bump to 1.0.1 for catalog submission"
-git push origin main
-```
-
-Then re-run steps 3-11 with `1.0.1` substituted.
-
----
+Inspect the archive before extraction with `tar -tzf <archive>`. Reject
+absolute paths, parent traversal, links, unexpected files, credentials,
+source maps, source files, and development dependencies. Extract into a
+new temporary directory, not directly over an installed plugin.
+
+Verify that the extracted `main.js` equals the candidate's `dist/main.js`
+and that the extracted `package.json` equals the candidate's file. Check
+its package name and version explicitly. Calculate the archive SHA-256
+independently (`shasum -a 256`, `sha256sum`, or PowerShell `Get-FileHash`).
+Retain the exact tested archive: repacking may change its checksum even
+when the plugin code is unchanged.
+
+## 4. Test the extracted archive
+
+Follow the [installation instructions](./README.md#install) and the
+[official Headlamp deployment guide](https://headlamp.dev/docs/latest/development/plugins/building/).
+Use an isolated Headlamp instance and mount only the extracted plugin.
+Do not modify an operator's installed plugins or connect to a real cluster
+without explicit permission.
+
+Verify the entry route, service/namespace selection, dependency graph,
+node details, drawer close button/Escape/backdrop, blast radius, and
+light/dark rendering. Record the host image tag **and digest**, plugin
+version, source commit, archive/bundle checksums, viewport, interactions,
+console findings, and untested flows outside this public repository.
+
+A real Headlamp host with a mock API proves host integration for the
+exercised flows, not real-cluster acceptance, all advertised versions,
+full Policies/OTel behavior, or long-term reliability. Test those claims
+separately before making them. Known unrelated host warnings/errors must
+remain visible in the validation record.
+
+## 5. Merge, then publish only when approved
+
+After review and successful PR checks, merge the preparation PR and wait
+for CI on the resulting `main` commit. Confirm its tracked tree matches
+the tested candidate. If code or packaging inputs changed, repeat the
+affected validation before publishing. Record both the candidate commit
+and final release commit; do not silently attribute old evidence to new code.
+
+Only after explicit release approval:
+
+1. Create and verify a signed annotated `v<version>` tag at the approved
+   final commit, then push that tag. Never replace an existing tag.
+2. Create the GitHub release in `lithastra/kubeatlas-headlamp-plugin` for
+   that existing tag. Use the reviewed release notes and attach the exact
+   tested archive with its SHA-256. Do not rebuild the asset during upload.
+3. Verify the published release is not a draft, the tag points to the
+   approved commit, and the downloaded asset hash matches the tested file.
+4. Preserve the previous release for rollback. Stop if any identity or
+   checksum differs; do not overwrite an already published asset.
+
+Preparation, a merged PR, a draft release, and a publicly downloadable
+release are distinct states. Report only the state actually verified.
+
+## 6. Catalog distribution is independent
+
+This standalone repository currently has no root `artifacthub-pkg.yml`.
+Do not require or invent one as part of its package build. Catalog
+version manifests belong to the chosen catalog/Artifact Hub workflow;
+consult the [official publishing guide](https://headlamp.dev/docs/latest/development/plugins/publishing/)
+and that repository's current contribution instructions.
+
+An upstream catalog PR may remain open while the standalone GitHub
+release ships. Updating that PR does not require waiting for its merge
+and does not prove installation through the catalog is available.
+Do not promise indexing times or widen compatibility based on one smoke test.
+
+When catalog work is explicitly in scope, match each manifest's version,
+archive URL, and checksum to the **same actual distributed archive**.
+A catalog pipeline may build a different archive than this repository;
+never reuse our checksum for an unverified upstream-built asset. Retain
+historical version entries and published releases; do not replace them.
 
 ## Rollback
 
-Don't delete published tags or releases on the catalog repo —
-operators may have pinned. Instead cut `1.0.x+1` with the fix.
-If the bug is severe, ask the catalog maintainers to add a
-deprecation note to the 1.0.x release page.
+Stop Headlamp, preserve the current plugin outside its plugin root, and
+reinstall the previously verified release. Avoid duplicate KubeAtlas
+plugin directories and leave unrelated plugins untouched. Publish a new
+patch version for a correction instead of deleting or retagging a release.
