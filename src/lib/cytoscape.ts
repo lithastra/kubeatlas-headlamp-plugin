@@ -2,6 +2,7 @@ import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import type { GraphEdge as ViewEdge, GraphNode as ViewNode, GraphView as View } from '../api/types';
 import { clusterColour } from './clusterColour';
+import { fitOnContainerResize } from './graphViewport';
 import {
   type AtlasEdgePalette,
   type AtlasPalette,
@@ -549,6 +550,7 @@ export function createCytoscape(
     ...perfOptions,
   });
   cy.layout(layout).run();
+  fitOnContainerResize(cy);
   return cy;
 }
 

@@ -1,8 +1,19 @@
 # Changelog
 
-## 1.2.1 — Unreleased
+## Unreleased
 
-This is a release candidate in source, not a published package.
+### Fixed
+
+- Refit dependency and resource-neighborhood graphs when their container size
+  changes, including viewport resizing and the Headlamp sidebar. Preserve node
+  positions, selection, and blast-radius flags without rerunning layout. Repeated
+  notifications at the same size leave manual pan and zoom unchanged.
+- Wrap graph controls on narrow screens so the namespace, blast-radius exit,
+  and depth controls remain accessible without horizontal scrolling.
+
+## 1.2.1 — 2026-09-25
+
+Published as a [GitHub release](https://github.com/lithastra/kubeatlas-headlamp-plugin/releases/tag/v1.2.1).
 
 ### Fixed
 

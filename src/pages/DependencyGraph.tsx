@@ -181,8 +181,19 @@ export function DependencyGraphPage() {
       {!service && <ChooseService onSelect={setService} />}
 
       {service && (
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <FormControl size="small" sx={{ minWidth: 240 }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          useFlexGap
+          alignItems="center"
+          role="group"
+          aria-label="Graph controls"
+          sx={{ mb: 2, flexWrap: 'wrap' }}
+        >
+          <FormControl
+            size="small"
+            sx={{ minWidth: { xs: 0, sm: 240 }, width: { xs: '100%', sm: 'auto' } }}
+          >
             <InputLabel id="ns-label">Namespace</InputLabel>
             <Select
               labelId="ns-label"
@@ -204,6 +215,7 @@ export function DependencyGraphPage() {
                 label={`Blast radius · ${blastRootId}`}
                 color="primary"
                 onDelete={() => setBlastRootId(null)}
+                sx={{ maxWidth: '100%' }}
               />
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <InputLabel id="blast-depth-label">Depth</InputLabel>
