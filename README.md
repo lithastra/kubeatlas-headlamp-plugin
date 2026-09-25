@@ -99,7 +99,7 @@ one click.
 ### From source (development / pre-release)
 
 ```bash
-npm install
+npm ci
 npm run build          # produces dist/main.js
 ```
 
@@ -147,7 +147,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the toolchain
 commands and contribution workflow. The short loop:
 
 ```bash
-npm install
+npm ci
 npm run tsc            # type-check
 npm run lint           # eslint
 npm test               # vitest

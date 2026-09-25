@@ -17,6 +17,8 @@
     "package": "headlamp-plugin package",
     "tsc": "headlamp-plugin tsc",
     "test": "vitest run -c vitest.config.ts",
+    "audit:prod": "npm audit --omit=dev --audit-level=low",
+    "audit:tooling": "npm audit --include=dev --audit-level=high",
     "i18n": "headlamp-plugin i18n"
   },
   "keywords": [
