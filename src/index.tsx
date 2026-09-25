@@ -88,6 +88,7 @@ registerDetailsViewSection(({ resource }: DetailsViewSectionProps) => {
   }
   return (
     <DependenciesSection
+      cluster={resource.cluster}
       kind={resource.kind}
       namespace={resource.metadata?.namespace ?? ''}
       name={resource.metadata?.name ?? ''}
