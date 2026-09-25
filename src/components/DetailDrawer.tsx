@@ -103,6 +103,9 @@ export function DetailDrawer({
       anchor="right"
       open={nodeId !== null}
       onClose={onClose}
+      // This temporary drawer is modal. Keep its portal and backdrop above
+      // Headlamp's toolbar (drawer + 1), not just the paper inside the portal.
+      sx={{ zIndex: theme => theme.zIndex.modal }}
       // Width matches the main web UI's right detail panel.
       PaperProps={{ sx: { width: { xs: '100%', sm: 420 } } }}
     >
