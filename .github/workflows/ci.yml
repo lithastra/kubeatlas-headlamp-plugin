@@ -1,6 +1,6 @@
 name: CI
 
-# Lint, type-check, test, and build the plugin on every push to main
+# Audit, lint, type-check, test, and build the plugin on every push to main
 # and every pull request. No untrusted GitHub event inputs are used
 # in any run: step — only static commands.
 on:
@@ -70,6 +70,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Audit development toolchain
+        run: npm run audit:tooling
 
       - name: Lint
         run: npm run lint
