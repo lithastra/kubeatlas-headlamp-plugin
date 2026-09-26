@@ -19,6 +19,7 @@ import cytoscape, { type Core } from 'cytoscape';
 import { useEffect, useRef } from 'react';
 import { Edge, GraphView } from '../api/types';
 import { applyAtlasPalette, buildAtlasStylesheet, elementsFromView } from '../lib/cytoscape';
+import { fitOnContainerResize } from '../lib/graphViewport';
 import { paletteForScheme } from '../lib/themePalettes';
 
 export interface NeighborGraphProps {
@@ -107,6 +108,7 @@ export function NeighborGraph({ centerId, centerLabel, incoming, outgoing }: Nei
       fit: true,
       padding: 24,
     } as cytoscape.LayoutOptions).run();
+    fitOnContainerResize(cy);
 
     cyRef.current = cy;
     return () => {
