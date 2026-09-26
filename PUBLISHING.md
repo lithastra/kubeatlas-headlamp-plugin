@@ -66,8 +66,8 @@ Keep the printed output path and archive checksum with the private
 validation record. The command refuses to overwrite an existing archive.
 This is a Headlamp plugin archive, not an npm registry publication.
 
-For candidate `1.2.1`, expect
-`lithastra-kubeatlas-headlamp-plugin-1.2.1.tar.gz` containing only:
+For the version declared in `package.json`, expect
+`lithastra-kubeatlas-headlamp-plugin-<version>.tar.gz` containing only:
 
 ```text
 kubeatlas-headlamp-plugin/

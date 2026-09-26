@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.2.2 — Unreleased
+
+Release preparation only; no tag or release asset is published by this change.
 
 ### Fixed
 
@@ -10,6 +12,36 @@
   notifications at the same size leave manual pan and zoom unchanged.
 - Wrap graph controls on narrow screens so the namespace, blast-radius exit,
   and depth controls remain accessible without horizontal scrolling.
+- Keep resource-detail service discovery and dependency requests scoped to the
+  resource's own cluster, including retained windows on global settings pages
+  or another cluster's route. Identically named resources in different clusters
+  must not share dependency data.
+- Reset dependency state when the resource or backing service changes, ignore
+  stale request completions, and distinguish loading, discovery failure, empty
+  discovery, and empty neighborhoods. Show actionable errors without exposing
+  raw upstream response bodies or incorrectly claiming KubeAtlas is not installed.
+
+### Validation scope and known limitations
+
+- The combined source passed 72 tests across 10 files, lint, types, production
+  build, and Storybook compilation. The release candidate archive must also
+  pass the packaging and extracted-archive checks in [PUBLISHING.md](./PUBLISHING.md).
+  Storybook compilation validates the toolchain, not rendered components.
+- Targeted source checks used an isolated official Headlamp `v0.42.0` container
+  with two mock Kubernetes/KubeAtlas clusters, at desktop and 390px widths in
+  light/dark themes. They covered graph fitting, retained selection, independent
+  resource windows, the detail drawer, and blast-radius controls. These checks
+  do not establish real-cluster, all-version, Policies/OTel, whole-host mobile,
+  or long-running production acceptance; compatibility declarations are unchanged.
+- Existing host version/CRD JSON errors and Cytoscape label-width and wheel
+  warnings remain outside these fixes. An initial host WebSocket error was
+  recorded during source validation; its cause remains unconfirmed. The host
+  image's displayed version differs from its official tag as noted under 1.2.1;
+  retain its digest in validation evidence.
+- Dependency versions are unchanged. The production audit reported zero
+  advisories; the development toolchain retains seven low affected entries in
+  the elliptic chain, not seven independent vulnerabilities. The npm 10 optional
+  dependency diagnostic described under 1.2.1 also remains unchanged.
 
 ## 1.2.1 — 2026-09-25
 
