@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
-import { resourcePath, serviceProxyPath } from './client';
+import { ApiProxy } from '@kinvolk/headlamp-plugin/lib';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchResourceNeighbors, resourcePath, serviceProxyPath } from './client';
+
+vi.mock('@kinvolk/headlamp-plugin/lib', () => ({ ApiProxy: { request: vi.fn() } }));
+
+beforeEach(() => vi.mocked(ApiProxy.request).mockReset());
 
 describe('serviceProxyPath', () => {
   const svc = { namespace: 'kubeatlas', name: 'kubeatlas', port: 8080 };
@@ -49,5 +54,33 @@ describe('resourcePath', () => {
 
   it('uses the "_" sentinel for a cluster-scoped resource', () => {
     expect(resourcePath('', 'Node', 'worker-1')).toBe('api/v1/resources/_/Node/worker-1');
+  });
+});
+
+describe('fetchResourceNeighbors', () => {
+  const svc = { namespace: 'kubeatlas', name: 'kubeatlas', port: 8080 };
+  const path =
+    '/api/v1/namespaces/kubeatlas/services/kubeatlas:8080/proxy/api/v1/resources/demo/Deployment/web';
+
+  it('pins resource-window requests to the resource cluster', async () => {
+    vi.mocked(ApiProxy.request).mockResolvedValue({ incoming: [], outgoing: [] });
+    await fetchResourceNeighbors(svc, 'demo', 'Deployment', 'web', 'cluster-a');
+    expect(ApiProxy.request).toHaveBeenCalledWith(path, { isJSON: true, cluster: 'cluster-a' });
+  });
+
+  it('preserves the existing route-scoped caller when no cluster is provided', async () => {
+    vi.mocked(ApiProxy.request).mockResolvedValue({});
+    expect(await fetchResourceNeighbors(svc, 'demo', 'Deployment', 'web')).toEqual({
+      incoming: [],
+      outgoing: [],
+    });
+    expect(ApiProxy.request).toHaveBeenCalledWith(path, { isJSON: true });
+  });
+
+  it.each(['', '   '])('rejects an explicitly missing resource cluster (%j)', async cluster => {
+    await expect(
+      fetchResourceNeighbors(svc, 'demo', 'Deployment', 'web', cluster)
+    ).rejects.toThrow();
+    expect(ApiProxy.request).not.toHaveBeenCalled();
   });
 });

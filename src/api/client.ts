@@ -79,15 +79,24 @@ export function resourcePath(namespace: string, kind: string, name: string): str
 }
 
 // fetchResourceNeighbors retrieves the one-hop incoming and outgoing
-// edges of a single resource from a KubeAtlas Service.
+// edges of a single resource from a KubeAtlas Service. Resource windows pass
+// their cluster explicitly because they can outlive the current cluster route.
+// Omitting cluster preserves the existing route-scoped graph drawer behavior.
 export async function fetchResourceNeighbors(
   svc: KubeAtlasService,
   namespace: string,
   kind: string,
-  name: string
+  name: string,
+  cluster?: string
 ): Promise<ResourceNeighbors> {
+  if (cluster !== undefined && !cluster.trim()) {
+    throw new Error('A resource cluster is required.');
+  }
   const path = serviceProxyPath(svc, resourcePath(namespace, kind, name));
-  const detail = await ApiProxy.request(path, { isJSON: true });
+  const detail = await ApiProxy.request(path, {
+    isJSON: true,
+    ...(cluster === undefined ? {} : { cluster }),
+  });
   return {
     incoming: Array.isArray(detail?.incoming) ? detail.incoming : [],
     outgoing: Array.isArray(detail?.outgoing) ? detail.outgoing : [],
