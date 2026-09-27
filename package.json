@@ -62,7 +62,7 @@
     "storybook": "10.6.0"
   },
   "dependencies": {
-    "cytoscape": "^3.34.1",
+    "cytoscape": "^3.34.3",
     "cytoscape-cose-bilkent": "^4.1.0"
   }
 }
